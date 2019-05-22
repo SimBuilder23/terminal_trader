@@ -2,6 +2,8 @@
 #!/usr/bin/env python3
 
 import csv
+import datetime
+import time
 
 import psycopg2
 import pandas as pd
@@ -101,27 +103,32 @@ class User:
     def buy(self, ticker_symbol, trade_volume):
         # TODO connect to the model, un-hardcode the username, un-hardcode the price, un-hardcode the trade_volume
 
-        with Database() as db:
-            username = 'simbuilder'     #TODO un-hardcode the username
+        buy = 1                     # should be side = "buy"; but, transaction table needs to be updated to "side" instead of "buy"
 
+        with Database() as db:
             db.cursor.execute(
-                f"""SELECT balance from users where username='{username}';""")
+                f"""SELECT balance from users where username='{self.username}';""")
             my_cash = db.cursor.fetchone()
 
             last_price = w.quote(ticker_symbol)
+            execution_price = last_price
 
             market_value = User.calc_market_value(self, trade_volume, last_price)
 
-            if (float(my_cash[0]) >= market_value):
-                User.update_balance(self, username, market_value)
+            order_quantity = trade_volume
+            time_stamp = time.time()
 
+            if (float(my_cash[0]) >= market_value):
+                User.update_balance (self, self.username, market_value)
+
+                User.record_transaction (self, self.username, buy, execution_price, ticker_symbol, order_quantity, time_stamp)
 
                 print ("Filled! You bought {} {} @ {}.".format(trade_volume, ticker_symbol, last_price))
 
-
-
             else:
                 print ("Rejected! You don't have enough funds available.")
+
+
 
 
 
@@ -131,6 +138,59 @@ class User:
  #           my_position - db.cursor.execute(
   #              """ SELECT position from"""
         # TODO
+        pass
+
+    def record_transaction(self, username, buy, execution_price, ticker_symbol, order_quantity, time_stamp):
+        with Database() as db:
+            db.cursor.execute(
+            """INSERT INTO transactions(
+                    user_id,
+                    buy,
+                    execution_price,
+                    ticker_symbol,
+                    order_quantity,
+                    time_stamp
+                ) VALUES (
+                    %s, %s, %s, %s, %s, %s
+                );""", (1, buy, execution_price, ticker_symbol, order_quantity, time_stamp)
+            )
+
+            # need to know if the ticker already exits in transactions, for that user; if yes, update the existing data
+            db.cursor.execute(
+            """SELECT ticker_symbol, current_holdings FROM positions where user_id=1;""")   #and ticker is ticker
+            prior_positions = list(db.cursor.fetchall())   # should be one, if greater raise an error
+
+            prior_tickers = []
+            for item in prior_positions:
+                prior_tickers.append(item[0])
+
+            #if ticker_symbol has NOT been traded prior, set holdings equal to current transaction
+            if ticker_symbol not in prior_tickers:
+                db.cursor.execute(
+                    """INSERT INTO positions(
+                            user_id,
+                            average_price,
+                            ticker_symbol,
+                            current_holdings
+                        ) VALUES (
+                            %s, %s, %s, %s
+                        );""", (1, execution_price, ticker_symbol, order_quantity)
+                )
+
+            else:
+                #if ticker has been traded prior, but current position is zero, update holdings equal to current transaction
+                for item in prior_positions:
+                    if item[0] == ticker_symbol and item[1] == 0:
+                            db.cursor.execute(
+                                f"""UPDATE positions SET average_price = {execution_price}, current_holdings = {order_quantity} WHERE ticker_symbol = '{ticker_symbol}'"""
+                            )
+
+
+
+
+            # if the ticker doesn't already exist in the transactions table, then need to insert ticker_symbol, and add the data
+
+    def update_positions():
         pass
 
 
