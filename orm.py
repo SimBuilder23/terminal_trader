@@ -39,17 +39,17 @@ class Database:
                 ADD COLUMN {column_name} {column_type}
                 ;""".format(table_name = table_name, column_name = column_name, column_type = column_type))
 
-def does_not_exist(username):
-    with Database() as db:
-        db.cursor.execute(
-            "SELECT username FROM users WHERE username=%s;", (username,))
-        occurences = db.cursor.fetchall()
-        if len(occurences) < 1:
-            print("occurences", occurences, type(occurences))
-            return True
-        else:
-            print("username taken")
-            return False
+    def does_not_exist(username):
+        with Database() as db:
+            db.cursor.execute(
+                "SELECT username FROM users WHERE username=%s;", (username,))
+            occurences = db.cursor.fetchall()
+            if len(occurences) < 1:
+                print("occurences", occurences, type(occurences))
+                return True
+            else:
+                print("username taken")
+                return False
 
 
 
@@ -102,28 +102,26 @@ class User:
         # TODO connect to the model, un-hardcode the username, un-hardcode the price, un-hardcode the trade_volume
 
         with Database() as db:
+            username = 'simbuilder'     #TODO un-hardcode the username
+
             db.cursor.execute(
-                """SELECT balance from users where username='simbuilder';""")
+                f"""SELECT balance from users where username='{username}';""")
             my_cash = db.cursor.fetchone()
+
             last_price = w.quote(ticker_symbol)
 
-            if (float(my_cash[0]) >= trade_volume * last_price):
+            market_value = User.calc_market_value(self, trade_volume, last_price)
+
+            if (float(my_cash[0]) >= market_value):
+                User.update_balance(self, username, market_value)
+
+
                 print ("Filled! You bought {} {} @ {}.".format(trade_volume, ticker_symbol, last_price))
-                pass
+
+
+
             else:
                 print ("Rejected! You don't have enough funds available.")
-
-    def calc_market_value(trade_volume, last_price):
-        pass
-
-        ## PSEUDO:
-        # need to finish with POS vs NEG costs for buy vs sell
-        # calc_mkt_value = share qty * last_price
-        # if buy: +qty * mkt_price = +mkt_value
-        # if sell: -qty * mkt_price = -mkt_value
-
-        market_value = trade_volume * last_price
-
 
 
 
@@ -138,10 +136,23 @@ class User:
 
 
 
+    def calc_market_value(self, trade_volume, last_price):
+
+        ## PSEUDO:
+        # need to finish with POS vs NEG costs for buy vs sell
+        # calc_mkt_value = share qty * last_price
+        # if buy: +qty * mkt_price = +mkt_value
+        # if sell: -qty * mkt_price = -mkt_value
+
+        market_value = trade_volume * last_price
+        return market_value
+
+
+
     def update_balance(self, username, market_value):
         with Database() as db:
             db.cursor.execute(
-                """SELECT balance FROM users where username = {};""".format(username))
+                """SELECT balance FROM users where username = '{}';""".format(username))
             balance_start = db.cursor.fetchone()
             # balance_start returns a tuple; next line extracts the single value I want
             balance_start = balance_start[0]
@@ -151,15 +162,16 @@ class User:
             db.cursor.execute(
                 """UPDATE users
                     SET balance = {}
-                    WHERE username = {};""".format(balance_end, username))
+                    WHERE username = '{}';""".format(balance_end, username))
+
+
 
 
 
 if __name__ == "__main__":
     with User('simbuilder') as u:
-#        ticker_symbol = input ("Which ticker? ")
-#        volume = int( input ("How many shares? "))
+        ticker_symbol = input ("Which ticker? ")
+        volume = int( input ("How many shares? "))
+        u.buy(ticker_symbol, volume)  # ticker + order_qty
 
-#        u.buy(ticker_symbol, volume)  # ticker + order_qty
-
-        u.update_balance ('username', 25000)
+#        u.update_balance ('username', 25000)
