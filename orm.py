@@ -6,8 +6,10 @@ import csv
 import psycopg2
 import pandas as pd
 
+import wrapper as w
 
-print ("in object_relational_mapper.py")
+
+#print ("in object_relational_mapper.py")
 
 class Database:
     def __init__(self):
@@ -49,6 +51,12 @@ def does_not_exist(username):
             print("username taken")
             return False
 
+
+
+
+
+
+
 class User:
 
     def __init__(self, username):
@@ -88,27 +96,36 @@ class User:
         else:
             return False
 
+
+
     def buy(self, ticker_symbol, trade_volume):
         # TODO connect to the model, un-hardcode the username, un-hardcode the price, un-hardcode the trade_volume
-
 
         with Database() as db:
             db.cursor.execute(
                 """SELECT balance from users where username='simbuilder';""")
             my_cash = db.cursor.fetchone()
-            last_price = 435342.00
-
-            print (my_cash)
-            print(type(my_cash))
-            print(type(trade_volume))
-            print(type(last_price))
-
+            last_price = w.quote(ticker_symbol)
 
             if (float(my_cash[0]) >= trade_volume * last_price):
                 print ("Filled! You bought {} {} @ {}.".format(trade_volume, ticker_symbol, last_price))
                 pass
             else:
                 print ("Rejected! You don't have enough funds available.")
+
+    def calc_market_value(trade_volume, last_price):
+        pass
+
+        ## PSEUDO:
+        # need to finish with POS vs NEG costs for buy vs sell
+        # calc_mkt_value = share qty * last_price
+        # if buy: +qty * mkt_price = +mkt_value
+        # if sell: -qty * mkt_price = -mkt_value
+
+        market_value = trade_volume * last_price
+
+
+
 
     def sell(self, ticker_symbol, trade_volume):
         pass
@@ -118,7 +135,31 @@ class User:
         # TODO
         pass
 
+
+
+
+    def update_balance(self, username, market_value):
+        with Database() as db:
+            db.cursor.execute(
+                """SELECT balance FROM users where username = {};""".format(username))
+            balance_start = db.cursor.fetchone()
+            # balance_start returns a tuple; next line extracts the single value I want
+            balance_start = balance_start[0]
+            order_cost = market_value                   #TODO pass in the market_value
+            balance_end = balance_start - order_cost   #TODO need to wrap in FLOAT? or already float??
+
+            db.cursor.execute(
+                """UPDATE users
+                    SET balance = {}
+                    WHERE username = {};""".format(balance_end, username))
+
+
+
 if __name__ == "__main__":
     with User('simbuilder') as u:
-        u.buy("IBM", 100)
+#        ticker_symbol = input ("Which ticker? ")
+#        volume = int( input ("How many shares? "))
 
+#        u.buy(ticker_symbol, volume)  # ticker + order_qty
+
+        u.update_balance ('username', 25000)
