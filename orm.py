@@ -157,7 +157,7 @@ class User:
 
             # need to know if the ticker already exits in transactions, for that user; if yes, update the existing data
             db.cursor.execute(
-            """SELECT ticker_symbol, current_holdings FROM positions where user_id=1;""")   #and ticker is ticker
+            """SELECT ticker_symbol, current_holdings, average_price FROM positions where user_id=1;""")   #and ticker is ticker
             prior_positions = list(db.cursor.fetchall())   # should be one, if greater raise an error
 
             prior_tickers = []
@@ -177,14 +177,36 @@ class User:
                         );""", (1, execution_price, ticker_symbol, order_quantity)
                 )
 
-            else:
+            #else:
                 #if ticker has been traded prior, but current position is zero, update holdings equal to current transaction
-                for item in prior_positions:
-                    if item[0] == ticker_symbol and item[1] == 0:
-                            db.cursor.execute(
-                                f"""UPDATE positions SET average_price = {execution_price}, current_holdings = {order_quantity} WHERE ticker_symbol = '{ticker_symbol}'"""
-                            )
+                #for item in prior_positions:
+                #    if item[0] == ticker_symbol and item[1] == 0:
+                #            db.cursor.execute(
+                #                f"""UPDATE positions SET average_price = {execution_price}, current_holdings = {order_quantity} WHERE ticker_symbol = '{ticker_symbol}'"""
+                #            )
 
+
+            # creates single function that take existing holdings @ avg price, and updates to reflect new holdings qty and new avg price
+            else:
+                for item in prior_positions:
+                    if item[0] == ticker_symbol:
+                        old_qty = item[1]
+                        old_avg_price = item[2]
+                        old_mkt_value = old_qty * old_avg_price
+                        break                       # is this good style/syntax - using a break here?
+
+                # add original qty to order qty to get the updated holdings qty
+                new_qty = old_qty + order_quantity
+
+                # use SUMPRODUCT of original position and new order to get new avg price
+                order_mkt_value = order_quantity * execution_price
+                new_mkt_value = old_mkt_value + order_mkt_value
+                new_avg_price = new_mkt_value / new_qty
+
+                # update the positions table to reflect new_qty and new_avg_price
+                db.cursor.execute(
+                    f"""UPDATE positions SET average_price = {new_avg_price}, current_holdings = {new_qty} WHERE ticker_symbol = '{ticker_symbol}'"""
+                )
 
 
 

@@ -5,8 +5,9 @@ import csv
 import numpy as np
 import pandas as pd
 
+import orm
 
-df = pd.read_csv('UBER.csv')
+#df = pd.read_csv('UBER.csv')
 
 """print(df.shape)
 print(df.describe())
@@ -29,7 +30,7 @@ d = {'date':[],
     'adj_close':[],
     'volume':[]}
 
-with open ("UBER.csv", "r") as f:
+"""with open ("UBER.csv", "r") as f:
     rows = csv.reader(f)
     next(rows)
     for row in rows:
@@ -39,7 +40,7 @@ with open ("UBER.csv", "r") as f:
         d['low'].append(row[3])
         d['close'].append(row[4])
         d['adj_close'].append(row[5])
-        d['volume'].append(row[6])
+        d['volume'].append(row[6])"""
 
 
 
