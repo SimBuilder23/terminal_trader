@@ -103,7 +103,7 @@ class User:
     def buy(self, ticker_symbol, trade_volume):
         # TODO connect to the model, un-hardcode the username, un-hardcode the price, un-hardcode the trade_volume
 
-        buy = 1                     # should be side = "buy"; but, transaction table needs to be updated to "side" instead of "buy"
+        buy = 1
 
         with Database() as db:
             db.cursor.execute(
@@ -123,22 +123,65 @@ class User:
 
                 User.record_transaction (self, self.username, buy, execution_price, ticker_symbol, order_quantity, time_stamp)
 
-                print ("Filled! You bought {} {} @ {}.".format(trade_volume, ticker_symbol, last_price))
+                print ("Filled! You paid {} for {} {}.".format(last_price, trade_volume, ticker_symbol))
 
             else:
                 print ("Rejected! You don't have enough funds available.")
 
 
 
-
-
     def sell(self, ticker_symbol, trade_volume):
-        pass
-#        with Database() as db:
- #           my_position - db.cursor.execute(
-  #              """ SELECT position from"""
-        # TODO
-        pass
+        # TODO connect to the model, un-hardcode the username, un-hardcode the price, un-hardcode the trade_volume
+
+        buy = 0   # zero value indicates a sell
+
+        with Database() as db:
+            db.cursor.execute(
+                f"""SELECT current_holdings FROM positions
+                    WHERE ticker_symbol = '{ticker_symbol}';""")  #TODO add back username
+            my_position = db.cursor.fetchone()
+
+            last_price = w.quote(ticker_symbol)
+            execution_price = last_price
+
+            order_quantity = trade_volume * -1 # makes a sell neg. qty
+            time_stamp = time.time()
+
+            market_value = User.calc_market_value(self, trade_volume, last_price) * -1 # makes a sell pos. cash
+
+
+            if ((my_position[0]) >= abs(order_quantity)):
+                User.update_balance (self, self.username, market_value)
+
+                User.record_transaction (self, self.username, buy, execution_price, ticker_symbol, order_quantity, time_stamp)
+
+                print ("Filled! You sold {} {} @ {}.".format(trade_volume, ticker_symbol, last_price))
+
+            else:
+                print (f"Rejected! You don't have enough {ticker_symbol} available to sell.")
+
+
+
+    def mtm_pnl(self, ticker_symbol):
+
+        ## pseudo: (current price - my avg price ) * my_position
+
+        last_price = w.quote(ticker_symbol)
+
+        with Database() as db:
+            db.cursor.execute(
+                f"""SELECT average_price FROM positions WHERE ticker_symbol = '{ticker_symbol}';""")
+            my_avg_price = db.cursor.fetchone()
+            my_avg_price = my_avg_price[0]
+
+            db.cursor.execute(
+                f"""SELECT current_holdings FROM positions WHERE ticker_symbol = '{ticker_symbol}';""")
+            my_current_qty = db.cursor.fetchone()
+            my_current_qty = my_current_qty[0]
+
+        current_pnl = (last_price - my_avg_price) * my_current_qty
+        return current_pnl
+
 
     def record_transaction(self, username, buy, execution_price, ticker_symbol, order_quantity, time_stamp):
         with Database() as db:
@@ -201,7 +244,11 @@ class User:
                 # use SUMPRODUCT of original position and new order to get new avg price
                 order_mkt_value = order_quantity * execution_price
                 new_mkt_value = old_mkt_value + order_mkt_value
-                new_avg_price = new_mkt_value / new_qty
+
+                if new_qty == 0:     #TODO if qty == 0, delete position row in SQL
+                    new_avg_price = 0
+                else:
+                    new_avg_price = new_mkt_value / new_qty
 
                 # update the positions table to reflect new_qty and new_avg_price
                 db.cursor.execute(
@@ -252,8 +299,10 @@ class User:
 
 if __name__ == "__main__":
     with User('simbuilder') as u:
-        ticker_symbol = input ("Which ticker? ")
-        volume = int( input ("How many shares? "))
-        u.buy(ticker_symbol, volume)  # ticker + order_qty
+        #ticker_symbol = input ("Which ticker? ")
+        #volume = int( input ("How many shares? "))
+        #u.sell(ticker_symbol, volume)  # ticker + order_qty
 
 #        u.update_balance ('username', 25000)
+
+        print(u.mtm_pnl('AAPL'))
